@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .post { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 8px; }
+        .post img { max-width: 200px; display: block; margin-top: 10px; }
+        .login-btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Latest Posts</h1>
+    <a href="/login-page" class="login-btn">Login to Post</a>
+    <hr>
+    <% if (posts.length > 0) { %>
+        <% posts.forEach(post => { %>
+            <div class="post">
+                <h2><%= post.title %></h2>
+                <p><%= post.content %></p>
+                <% if (post.image) { %>
+                    <img src="<%= post.image %>" alt="Post Image">
+                <% } %>
+            </div>
+        <% }) %>
+    <% } else { %>
+        <p>No posts available.</p>
+    <% } %>
+</body>
+</html>

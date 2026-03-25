@@ -1,18 +1,38 @@
 const express = require('express');
-const jwt = require('jsonwebtoken'); // Import jsonwebtoken
+const jwt = require('jsonwebtoken');
+const multer = require('multer'); // Import multer for file uploads
+const path = require('path');
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Configure EJS Template Engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
-// Secret key for JWT signing (In a real app, use environment variables)
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Static folder for images
+
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
 const SECRET_KEY = 'my_super_secret_key';
 
 // In-memory data storage
 let posts = [
-    { id: 1, title: 'First Post', content: 'Hello World!' },
-    { id: 2, title: 'Second Post', content: 'Express is awesome.' }
+    { id: 1, title: 'First Post', content: 'Hello World!', image: null },
+    { id: 2, title: 'Second Post', content: 'Express is awesome.', image: null }
 ];
+
 
 // User Login - Generates a JWT
 app.post('/login', (req, res) => {
@@ -50,14 +70,39 @@ const authenticate = (req, res, next) => {
 
 
 app.get('/', (req, res) => {
-    res.send('Social Media API is running');
+    // Basic EJS render example (Dynamic HTML)
+    res.render('index', { posts: posts });
 });
 
-// GET /posts - Get all posts
+app.get('/login-page', (req, res) => {
+    res.render('login');
+});
+
+// Helper route to seed data for pagination testing
+app.get('/seed', (req, res) => {
+    for (let i = 3; i <= 20; i++) {
+        posts.push({ id: i, title: `Post ${i}`, content: `Content for post ${i}`, image: null });
+    }
+    res.send('Seeded 18 mock posts for pagination testing!');
+});
+
+
+// GET /posts - Get all posts (With Pagination)
 app.get('/posts', (req, res) => {
-    res.json(posts);
-});
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
 
+    const resultPosts = posts.slice(startIndex, endIndex);
+    res.json({
+        page: page,
+        limit: limit,
+        totalItems: posts.length,
+        totalPages: Math.ceil(posts.length / limit),
+        data: resultPosts
+    });
+});
 // GET /posts/:id - Get a single post
 app.get('/posts/:id', (req, res) => {
     const post = posts.find(p => p.id === parseInt(req.params.id));
@@ -65,16 +110,18 @@ app.get('/posts/:id', (req, res) => {
     res.json(post);
 });
 
-// POST /posts - Create a new post (Protected)
-app.post('/posts', authenticate, (req, res) => {
+// POST /posts - Create a new post (Protected + Image Upload)
+app.post('/posts', authenticate, upload.single('image'), (req, res) => {
     const newPost = {
         id: posts.length + 1,
         title: req.body.title,
-        content: req.body.content
+        content: req.body.content,
+        image: req.file ? `/uploads/${req.file.filename}` : null // Handle optional image upload
     };
     posts.push(newPost);
     res.status(201).json(newPost);
 });
+
 
 // PUT /posts/:id - Update a post (Protected)
 app.put('/posts/:id', authenticate, (req, res) => {
