@@ -1,8 +1,12 @@
 const express = require('express');
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Secret key for JWT signing (In a real app, use environment variables)
+const SECRET_KEY = 'my_super_secret_key';
 
 // In-memory data storage
 let posts = [
@@ -10,15 +14,40 @@ let posts = [
     { id: 2, title: 'Second Post', content: 'Express is awesome.' }
 ];
 
-// Simple Authentication Middleware
+// User Login - Generates a JWT
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    // For this lab, we'll allow any username and a fixed password
+    if (password === 'password123') {
+        const user = { username: username }; // User payload
+        const token = jwt.sign(user, SECRET_KEY, { expiresIn: '1h' });
+        res.json({ token });
+    } else {
+        res.status(401).json({ message: 'Invalid credentials' });
+    }
+});
+
+// JWT Authentication Middleware
 const authenticate = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    if (authHeader === 'secret-token') {
-        next();
-    } else {
-        res.status(401).json({ message: 'Unauthorized' });
+    
+    // Check if the header exists and starts with 'Bearer '
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Unauthorized - Missing or malformed token' });
     }
+
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({ message: 'Forbidden - Invalid or expired token' });
+        }
+        req.user = decoded; // Attach decoded user info to the request
+        next();
+    });
 };
+
 
 app.get('/', (req, res) => {
     res.send('Social Media API is running');
